@@ -4,4 +4,4 @@ JQuery plugin to help debug XMPP traffic.
 
 Usage:
 
-    $("#blockElementId").xmppInspector()
+    $("#blockElementId").xmppInspector(stropheConnexion)
