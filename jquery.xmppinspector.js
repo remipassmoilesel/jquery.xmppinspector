@@ -11,6 +11,12 @@
 
   $.fn.xmppInspector = function(stropheConnexion) {
 
+    var MAX_MSG = 50;
+    var storeAllMessages = false;
+
+    // initialize count if necessary
+    var msgcount = 0;
+
     // empty element first
     $(this).empty();
 
@@ -22,21 +28,35 @@
     // make resizable
     $(this).resizable();
 
+    // title of console
     var title = $("<div>XMPP Inspector: </div>")
         .css({
           'font-weight' : 'bolder', 'margin' : "10px"
         });
-
     $(this).append(title);
 
-    $(this).append("<div class='console'><div/>");
+    // checkbox for enable / disable whole history
+    var chk = $("<input type='checkbox'>");
+    chk.click(function() {
+      storeAllMessages = !storeAllMessages;
+    });
 
-    var logSpace = $(this).find(".console");
+    var historyChk = $("<div/>").append(chk).append(" Conserver tout l'historique (autrement seuls les " + MAX_MSG + " derniers messages seront conservés)");
+    historyChk.css({margin : "0.5em"});
+    $(this).append(historyChk);
+
+    // console element
+    $(this).append("<div class='xmppinspector_console'><div/>");
+
+    var logSpace = $(this).find(".xmppinspector_console");
     logSpace.css({
       'overflow' : 'scroll', 'background' : 'black', 'height' : '90%', 'padding' : '15px'
     });
 
-    // intercept XML
+    /**
+     * Intercept inbound / outbound traffic
+     * @param body
+     */
     stropheConnexion.xmlInput = function(body) {
       show_traffic(body, 'incoming');
     };
@@ -45,28 +65,41 @@
       show_traffic(body, 'outgoing');
     };
 
-    // show traffic
+    /**
+     * Show traffic in XMPP Inspector
+     * @param body
+     * @param type
+     */
     var show_traffic = function(body, type) {
 
+      // title for message, with inbound / outbound, date, ....
       var title = "<h1 class='xmppinspector_title'>" + type + " " + new Date().toUTCString() +
           "</h1>";
 
-      type = "xmppinspector_" + type;
+      // type of message: inbound, outbound
+      var classType = "xmppinspector_" + type;
 
       if (body.childNodes.length > 0) {
 
         $.each(body.childNodes, function() {
 
-          logSpace.append(title);
+          window._xmppinspector_msgcount++;
 
-          logSpace.append(
-              "<div class='xmppinspector_traffic " + type + "'>" + pretty_xml(this) + "</div>");
+          // container for whole traffic
+          var mctr = $("<div class='xmppinspector_messagecontainer'/>");
+
+          mctr.append(title);
+          mctr.append("<div class='xmppinspector_traffic " + classType + "'>" + pretty_xml(this) +
+              "</div>");
+
+          logSpace.append(mctr);
         });
 
         // scroll down
-
         var height = logSpace[0].scrollHeight;
         logSpace.scrollTop(height);
+
+        removeExceedMessages();
 
       }
     };
@@ -153,7 +186,39 @@
         return null;
       }
       return elem;
-    }
+    };
+
+    /**
+     * Remove exceeding messages
+     */
+    var removeExceedMessages = function() {
+
+      // do not remove messages if asked
+      if (storeAllMessages === true) {
+        return;
+      }
+
+      var toRemove = (msgcount - MAX_MSG);
+      if (toRemove > 0) {
+
+        logSpace.find(".xmppinspector_messagecontainer").each(function() {
+
+          $(this).remove();
+
+          toRemove--;
+          window._xmppinspector_msgcount--;
+
+          if (toRemove < 1) {
+            return false;
+          }
+
+          //console.error("Removed: ", $(this));
+
+        });
+
+      }
+
+    };
 
     return this;
 
