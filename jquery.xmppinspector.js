@@ -4,6 +4,9 @@
  * Only work with StropheJS and BOSH transport for now.
  *
  * Prettify code from "XMPP professionnal programming"
+ * 
+ * 
+ * Access to message stack from console: `window._xmppinspector_messageStack`
  *
  * @type {{}}
  */
@@ -11,8 +14,14 @@
 
   $.fn.xmppInspector = function(stropheConnexion) {
 
-    var MAX_MSG = 50;
+    var MAX_MSG_DISPLAYED = 50;
+    var MAX_MSG_STACK = 400;
     var storeAllMessages = false;
+
+    var messageStack = {};
+
+    // keep direct access in console
+    window._xmppinspector_messageStack = messageStack;
 
     // initialize count if necessary
     var msgcount = 0;
@@ -28,27 +37,42 @@
     // make resizable
     $(this).resizable();
 
+    // Header of console with title and commands
+    var header = $("<div/>").css({padding : "1em"});
+    $(this).append(header);
+
     // title of console
-    var title = $("<div>XMPP Inspector: </div>")
+    $("<div>XMPP Inspector: </div>")
         .css({
           'font-weight' : 'bolder', 'margin' : "10px"
-        });
-    $(this).append(title);
+        }).appendTo(header);
 
     // checkbox for enable / disable whole history
-    var chk = $("<input type='checkbox'>");
-    chk.click(function() {
+    var keepHistoryChk = $("<input type='checkbox'>");
+    keepHistoryChk.click(function() {
       storeAllMessages = !storeAllMessages;
     });
 
-    var historyChk = $("<div/>").append(chk).append(" Conserver tout l'historique (autrement seuls les " + MAX_MSG + " derniers messages seront conservés)");
-    historyChk.css({margin : "0.5em"});
-    $(this).append(historyChk);
+    header.append(keepHistoryChk).append(
+        " Conserver tout l'historique (autrement seuls les " + MAX_MSG_DISPLAYED +
+        " derniers messages seront conservés)");
+
+    // Log messages in console
+    var logStackButton = $(
+        "<button class='xmppinspector_logMessages'>Afficher les messages en consoles</button>");
+    logStackButton.click(function() {
+
+      console.info("Messages XMPP");
+      console.info(messageStack);
+
+    });
+
+    header.append("&nbsp;&nbsp;&nbsp;").append(logStackButton);
 
     // console element
-    $(this).append("<div class='xmppinspector_console'><div/>");
+    var logSpace = $("<div class='xmppinspector_console'><div/>");
+    $(this).append(logSpace);
 
-    var logSpace = $(this).find(".xmppinspector_console");
     logSpace.css({
       'overflow' : 'scroll', 'background' : 'black', 'height' : '90%', 'padding' : '15px'
     });
@@ -58,11 +82,42 @@
      * @param body
      */
     stropheConnexion.xmlInput = function(body) {
+      saveMessages(body, 'incoming');
       show_traffic(body, 'incoming');
+      removeExceedMessages();
     };
 
     stropheConnexion.xmlOutput = function(body) {
+      saveMessages(body, 'outgoing');
       show_traffic(body, 'outgoing');
+    };
+
+    var _deleted = 0;
+
+    /**
+     * Save messages in a dedicated stack, in order to log them in console on demand
+     * @param body
+     * @param type
+     */
+    var saveMessages = function(body, type) {
+
+      var d = new Date();
+
+      messageStack[d + "_" + d.getMilliseconds() + "ms_" + type] = {
+        domElement : body, stringValue : $(body),
+      };
+
+      if (Object.keys(messageStack).length > MAX_MSG_STACK && storeAllMessages !== true) {
+
+        var sorted = Object.keys(messageStack).sort();
+
+        var toDelete = 100;
+
+        for (var i = 0; i < toDelete; i++) {
+          delete messageStack[sorted[i]];
+        }
+
+      }
     };
 
     /**
@@ -98,8 +153,6 @@
         // scroll down
         var height = logSpace[0].scrollHeight;
         logSpace.scrollTop(height);
-
-        removeExceedMessages();
 
       }
     };
@@ -198,7 +251,7 @@
         return;
       }
 
-      var toRemove = (msgcount - MAX_MSG);
+      var toRemove = msgcount - MAX_MSG_DISPLAYED;
       if (toRemove > 0) {
 
         logSpace.find(".xmppinspector_messagecontainer").each(function() {
