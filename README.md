@@ -1,4 +1,4 @@
-# xmpp-insector
+# xmpp-inspector
 
 JQuery plugin to help debug XMPP traffic. Need JQuery UI.
 
