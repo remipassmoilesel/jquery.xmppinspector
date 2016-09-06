@@ -90,6 +90,15 @@
         var logSpace = $("<div class='xmppinspector_console'><div/>");
         $this.append(logSpace);
 
+        // add tag on element if mouse is in, to prevent scroll down
+        logSpace.mouseenter(function() {
+          logSpace.data('mouseon', true);
+        });
+
+        logSpace.mouseleave(function() {
+          logSpace.data('mouseon', false);
+        });
+
         /**
          * Intercept inbound / outbound traffic
          * @param body
@@ -153,7 +162,7 @@
 
             $.each(body.childNodes, function() {
 
-              displayed ++;
+              displayed++;
               window._xmppinspector_msgcount++;
 
               // title for message, with inbound / outbound, date, ....
@@ -171,10 +180,11 @@
               logSpace.append(mctr);
             });
 
-            // scroll down
-            var height = logSpace[0].scrollHeight;
-            logSpace.scrollTop(height);
-
+            // scroll down if mouse not on console
+            if (logSpace.data('mouseon') !== true) {
+              var height = logSpace[0].scrollHeight;
+              logSpace.scrollTop(height);
+            }
           }
         };
 
